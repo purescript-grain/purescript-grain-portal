@@ -8,7 +8,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Foreign.Object (Object, empty, insert, update, values)
-import Grain (class Grain, VNode, fromConstructor, mountUI, useLocalState)
+import Grain (class Grain, VNode, fromConstructor, grain, mountUI, useLocalState)
 import Grain.Markup as H
 import Grain.Portal (portal)
 import Web.DOM.Element (toNode)
@@ -18,31 +18,26 @@ import Web.HTML (window)
 import Web.HTML.HTMLDocument (toParentNode)
 import Web.HTML.Window (document)
 
-data Items = Items
+newtype Items = Items (Object Item)
 
-newtype ItemMap = ItemMap (Object Item)
-
-derive instance newtypeItemMap :: Newtype ItemMap _
+derive instance newtypeItems :: Newtype Items _
 
 type Item =
   { id :: String
   , opened :: Boolean
   }
 
-instance showItems :: Show Items where
-  show _ = "Items"
-
-instance grainItems :: Grain Items ItemMap where
+instance grainItems :: Grain Items where
   typeRefOf _ = fromConstructor Items
-  initialState _ = pure $ ItemMap $ foldl genItem empty (0 .. 3)
+  initialState _ = pure $ Items $ foldl genItem empty (0 .. 3)
     where
       genItem obj i =
         insert (show i) { id: show i, opened: false } obj
 
-open :: String -> ItemMap -> ItemMap
+open :: String -> Items -> Items
 open id = wrap <<< (update (Just <<< _ { opened = true }) id) <<< unwrap
 
-close :: String -> ItemMap -> ItemMap
+close :: String -> Items -> Items
 close id = wrap <<< update (Just <<< _ { opened = false }) id <<< unwrap
 
 main :: Effect Unit
@@ -55,7 +50,7 @@ main = do
 
 view :: VNode
 view = H.component do
-  Tuple (ItemMap items) updateItems <- useLocalState Items
+  Tuple (Items items) updateItems <- useLocalState (grain :: _ Items)
   let openItem item = updateItems $ open item.id
       closeItem item = updateItems $ close item.id
   pure $ H.div # H.kids

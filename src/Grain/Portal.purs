@@ -8,7 +8,7 @@ import Prelude
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
-import Grain (class Grain, UI, VNode, fromConstructor, mountUI, patchUI, useLocalState)
+import Grain (class Grain, UI, VNode, fromConstructor, grain, mountUI, patchUI, useLocalState)
 import Grain.Markup as H
 import Partial.Unsafe (unsafePartial)
 import Web.DOM.Document (createElement)
@@ -28,18 +28,10 @@ type Config =
   , child :: VNode
   }
 
-data Portal = Portal
+newtype Portal = Portal (Maybe { node :: Node, ui :: UI })
 
-instance showPortal :: Show Portal where
-  show _ = "Portal"
-
-newtype PortalState = PortalState
-  { node :: Node
-  , ui :: UI
-  }
-
-instance grainPortal :: Grain Portal (Maybe PortalState) where
-  initialState _ = pure Nothing
+instance grainPortal :: Grain Portal where
+  initialState _ = pure $ Portal Nothing
   typeRefOf _ = fromConstructor Portal
 
 -- | Render a `VNode` to portal root.
@@ -47,26 +39,26 @@ instance grainPortal :: Grain Portal (Maybe PortalState) where
 -- | The portal root will be created automatically.
 portal :: Config -> VNode
 portal config = H.component do
-  Tuple maybePortal updatePortal <- useLocalState Portal
+  Tuple (Portal maybePortal) updatePortal <- useLocalState (grain :: _ Portal)
 
   let didCreate = do
         node <- createPortalRoot config.rootZ
         ui <- mountUI config.child node
-        updatePortal $ const $ Just $ PortalState { node, ui }
+        updatePortal $ const $ Portal $ Just { node, ui }
 
       didUpdate =
         case maybePortal of
           Nothing -> pure unit
-          Just (PortalState { ui }) ->
+          Just { ui } ->
             patchUI (Just config.child) ui
 
       didDelete = do
         case maybePortal of
           Nothing -> pure unit
-          Just (PortalState { node, ui }) -> do
+          Just { node, ui } -> do
             patchUI Nothing ui
             removePortalRoot node
-            updatePortal $ const Nothing
+            updatePortal $ const $ Portal Nothing
 
   pure $ H.span
     # H.didCreate (const didCreate)
