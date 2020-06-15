@@ -5,10 +5,9 @@ import Prelude
 import Data.Array (foldl, (..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Foreign.Object (Object, empty, insert, update, values)
-import Grain (class Grain, VNode, fromConstructor, grain, mountUI, useLocalState)
+import Grain (class LocalGrain, LProxy(..), VNode, fromConstructor, mountUI, useUpdater, useValue)
 import Grain.Markup as H
 import Grain.Portal (portal)
 import Web.DOM.Element (toNode)
@@ -27,7 +26,7 @@ type Item =
   , opened :: Boolean
   }
 
-instance grainItems :: Grain Items where
+instance localGrainItems :: LocalGrain Items where
   typeRefOf _ = fromConstructor Items
   initialState _ = pure $ Items $ foldl genItem empty (0 .. 3)
     where
@@ -50,7 +49,8 @@ main = do
 
 view :: VNode
 view = H.component do
-  Tuple (Items items) updateItems <- useLocalState (grain :: _ Items)
+  Items items <- useValue (LProxy :: _ Items)
+  updateItems <- useUpdater (LProxy :: _ Items)
   let openItem item = updateItems $ open item.id
       closeItem item = updateItems $ close item.id
   pure $ H.div # H.kids

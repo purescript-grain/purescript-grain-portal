@@ -6,9 +6,8 @@ module Grain.Portal
 import Prelude
 
 import Data.Maybe (Maybe(..), fromJust)
-import Data.Tuple (Tuple(..))
 import Effect (Effect)
-import Grain (class Grain, UI, VNode, fromConstructor, grain, mountUI, patchUI, useLocalState)
+import Grain (class LocalGrain, LProxy(..), UI, VNode, fromConstructor, mountUI, patchUI, useUpdater, useValue)
 import Grain.Markup as H
 import Partial.Unsafe (unsafePartial)
 import Web.DOM.Document (createElement)
@@ -30,7 +29,7 @@ type Config =
 
 newtype Portal = Portal (Maybe { node :: Node, ui :: UI })
 
-instance grainPortal :: Grain Portal where
+instance localGrainPortal :: LocalGrain Portal where
   initialState _ = pure $ Portal Nothing
   typeRefOf _ = fromConstructor Portal
 
@@ -39,7 +38,8 @@ instance grainPortal :: Grain Portal where
 -- | The portal root will be created automatically.
 portal :: Config -> VNode
 portal config = H.component do
-  Tuple (Portal maybePortal) updatePortal <- useLocalState (grain :: _ Portal)
+  Portal maybePortal <- useValue (LProxy :: _ Portal)
+  updatePortal <- useUpdater (LProxy :: _ Portal)
 
   let didCreate = do
         node <- createPortalRoot config.rootZ
