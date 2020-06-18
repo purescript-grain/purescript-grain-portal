@@ -1,5 +1,5 @@
 module Grain.Portal
-  ( Config
+  ( Props
   , portal
   ) where
 
@@ -18,11 +18,11 @@ import Web.HTML.HTMLDocument (body, toDocument)
 import Web.HTML.HTMLElement as HE
 import Web.HTML.Window (document)
 
--- | The type of portal config.
+-- | The type of portal props.
 -- |
 -- | - `rootZ`: `z-index` of portal root.
 -- | - `child`: A `VNode` in portal root.
-type Config =
+type Props =
   { rootZ :: Int
   , child :: VNode
   }
@@ -36,21 +36,21 @@ instance localGrainPortal :: LocalGrain Portal where
 -- | Render a `VNode` to portal root.
 -- |
 -- | The portal root will be created automatically.
-portal :: Config -> VNode
-portal config = H.component do
+portal :: Props -> VNode
+portal props = H.component do
   Portal maybePortal <- useValue (LProxy :: _ Portal)
   updatePortal <- useUpdater (LProxy :: _ Portal)
 
   let didCreate = do
-        node <- createPortalRoot config.rootZ
-        ui <- mountUI config.child node
+        node <- createPortalRoot props.rootZ
+        ui <- mountUI props.child node
         updatePortal $ const $ Portal $ Just { node, ui }
 
       didUpdate =
         case maybePortal of
           Nothing -> pure unit
           Just { ui } ->
-            patchUI (Just config.child) ui
+            patchUI (Just props.child) ui
 
       didDelete = do
         case maybePortal of
